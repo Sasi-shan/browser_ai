@@ -1,0 +1,142 @@
+import NodeCache from 'node-cache';
+import { CacheEntry } from '../types';
+import { logger } from './logger';
+
+export class CacheManager {
+  private static instance: CacheManager;
+  private cache: NodeCache;
+  private statistics: {
+    hits: number;
+    misses: number;
+    sets: number;
+  } = { hits: 0, misses: 0, sets: 0 };
+
+  private constructor() {
+    this.cache = new NodeCache({
+      stdTTL: 3600, // 1 hour default TTL
+      checkperiod: 600, // Check for expired keys every 10 minutes
+      useClones: false
+    });
+
+    // Log cache events
+    this.cache.on('set', (key, value) => {
+      this.statistics.sets++;
+      logger.debug('Cache set', { key, ttl: this.cache.getTtl(key) });
+    });
+
+    this.cache.on('expired', (key, value) => {
+      logger.debug('Cache expired', { key });
+    });
+  }
+
+  public static getInstance(): CacheManager {
+    if (!CacheManager.instance) {
+      CacheManager.instance = new CacheManager();
+    }
+    return CacheManager.instance;
+  }
+
+  public set<T>(key: string, value: T, ttl?: number): boolean {
+    try {
+      const success = this.cache.set(key, value, ttl || 3600);
+      if (success) {
+        logger.debug('Cache entry set', { key, ttl: ttl || 3600 });
+      }
+      return success;
+    } catch (error) {
+      logger.error('Cache set error', { key, error });
+      return false;
+    }
+  }
+
+  public get<T>(key: string): T | undefined {
+    try {
+      const value = this.cache.get<T>(key);
+      if (value !== undefined) {
+        this.statistics.hits++;
+        logger.debug('Cache hit', { key });
+      } else {
+        this.statistics.misses++;
+        logger.debug('Cache miss', { key });
+      }
+      return value;
+    } catch (error) {
+      logger.error('Cache get error', { key, error });
+      this.statistics.misses++;
+      return undefined;
+    }
+  }
+
+  public has(key: string): boolean {
+    return this.cache.has(key);
+  }
+
+  public delete(key: string): number {
+    return this.cache.del(key);
+  }
+
+  public clear(): void {
+    this.cache.flushAll();
+    logger.info('Cache cleared');
+  }
+
+  public getStats() {
+    return {
+      ...this.statistics,
+      keys: this.cache.keys().length,
+      hitRate: this.statistics.hits / (this.statistics.hits + this.statistics.misses) || 0
+    };
+  }
+
+  // Stagehand specific caching methods
+  public cacheStagehandAction(actionKey: string, result: any, ttl: number = 1800): void {
+    const cacheKey = `stagehand:action:${actionKey}`;
+    this.set(cacheKey, result, ttl);
+    logger.info('Stagehand action cached', { actionKey, ttl });
+  }
+
+  public getCachedStagehandAction<T>(actionKey: string): T | undefined {
+    const cacheKey = `stagehand:action:${actionKey}`;
+    const result = this.get<T>(cacheKey);
+    if (result) {
+      logger.info('Stagehand action cache hit', { actionKey });
+    }
+    return result;
+  }
+
+  public cachePageData(url: string, data: any, ttl: number = 3600): void {
+    const cacheKey = `page:${this.hashUrl(url)}`;
+    this.set(cacheKey, data, ttl);
+  }
+
+  public getCachedPageData<T>(url: string): T | undefined {
+    const cacheKey = `page:${this.hashUrl(url)}`;
+    return this.get<T>(cacheKey);
+  }
+
+  public cacheLeadValidation(email: string, isValid: boolean, ttl: number = 86400): void {
+    const cacheKey = `validation:${email}`;
+    this.set(cacheKey, isValid, ttl);
+  }
+
+  public getCachedLeadValidation(email: string): boolean | undefined {
+    const cacheKey = `validation:${email}`;
+    return this.get<boolean>(cacheKey);
+  }
+
+  private hashUrl(url: string): string {
+    // Simple hash function for URLs
+    let hash = 0;
+    for (let i = 0; i < url.length; i++) {
+      const char = url.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  public logCacheStatistics(): void {
+    const stats = this.getStats();
+    logger.info('Cache statistics', stats);
+  }
+}

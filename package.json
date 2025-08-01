@@ -1,0 +1,48 @@
+{
+  "name": "lead-generation-stagehand",
+  "version": "1.0.0",
+  "description": "Lead generation system using Stagehand with multi-agent architecture",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts"
+  },
+  "dependencies": {
+    "@browserbasehq/stagehand": "^2.0.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/openai": "^0.3.0",
+    "playwright": "^1.40.0",
+    "dotenv": "^16.3.1",
+    "zod": "^3.22.4",
+    "winston": "^3.11.0",
+    "csv-writer": "^1.6.0",
+    "node-cache": "^5.1.2",
+    "cli-progress": "^3.12.0",
+    "inquirer": "^9.2.12",
+    "chalk": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/inquirer": "^9.0.7",
+    "typescript": "^5.2.2",
+    "ts-node": "^10.9.1",
+    "jest": "^29.7.0",
+    "@types/jest": "^29.5.5",
+    "eslint": "^8.50.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0"
+  },
+  "keywords": [
+    "lead-generation",
+    "stagehand",
+    "automation",
+    "web-scraping",
+    "langgraph"
+  ],
+  "author": "Lead Gen Team",
+  "license": "MIT"
+}
